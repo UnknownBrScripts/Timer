@@ -18,6 +18,11 @@
             background-color: transparent !important;
         }
         
+        /* Hack para o Office 365 / IE11 respeitar a transparência do body */
+        body {
+            background: rgba(255,255,255,0.01) !important; /* Quase invisível, mas força o motor a renderizar Alpha */
+        }
+        
         /* Container principal que funciona como Overlay */
         #app {
             width: 100%; 
@@ -72,6 +77,14 @@
             margin: 0;
             -moz-appearance: textfield;
             line-height: 1;
+        }
+
+        /* Hack para remover o fundo azul/cinza de seleção padrão do Windows/IE */
+        .time-input::selection {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .time-input::-moz-selection {
+            background: rgba(0, 0, 0, 0.1);
         }
 
         /* Remove as setas no Chrome/Safari/Edge */
@@ -543,6 +556,17 @@
             
             // Atualiza a tela com os valores formatados
             updateDisplay();
+            
+            // Remove a seleção fantasma no IE/Edge
+            if (window.getSelection) {
+                if (window.getSelection().empty) {  // Chrome
+                    window.getSelection().empty();
+                } else if (window.getSelection().removeAllRanges) {  // Firefox, Edge
+                    window.getSelection().removeAllRanges();
+                }
+            } else if (document.selection) {  // IE
+                document.selection.empty();
+            }
         }
 
         function handleEnter(e) {
