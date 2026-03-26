@@ -381,16 +381,16 @@
 
     <script>
         // Variáveis de Estado
-        let timeRemaining = 300; // 5 min em segundos (valor padrão)
-        let initialTime = 300;
-        let isRunning = false;
-        let timerInterval = null;
-        let currentOpacity = 0;
-        let currentFontSize = 150;
+        var timeRemaining = 300; // 5 min em segundos (valor padrão)
+        var initialTime = 300;
+        var isRunning = false;
+        var timerInterval = null;
+        var currentOpacity = 0;
+        var endTime = 0; // Usado para sincronizar o tempo entre slides
 
-        const minInput = document.getElementById('min-input');
-        const secInput = document.getElementById('sec-input');
-        const playBtn = document.getElementById('play-pause-btn');
+        var minInput = document.getElementById('min-input');
+        var secInput = document.getElementById('sec-input');
+        var playBtn = document.getElementById('play-pause-btn');
 
         // Funções Arrow e variáveis const/let podem dar erro no IE11 (usado por versões mais antigas do Office).
         // Vamos garantir que a inicialização do Office.js não quebre.
@@ -402,15 +402,17 @@
                 }
                 
                 // Inicialização
+                loadSettings();
+                loadTimerState();
                 updateDisplay();
                 resizeTimerText();
-                loadSettings();
             } catch (e) {
                 console.error("Erro na inicialização do Office.js:", e);
                 // Tenta inicializar mesmo se der erro no Office.js
+                loadSettings();
+                loadTimerState();
                 updateDisplay();
                 resizeTimerText();
-                loadSettings();
             }
         });
 
@@ -502,54 +504,130 @@
             toggleTimer();
         });
 
+        // ------------------ SINCRONIZAÇÃO ENTRE SLIDES ------------------
+        
+        function loadTimerState() {
+            try {
+                var saved = localStorage.getItem('powerpoint-timer-state');
+                if (saved) {
+                    var state = JSON.parse(saved);
+                    initialTime = state.initialTime !== undefined ? state.initialTime : 300;
+                    
+                    if (state.isRunning) {
+                        var now = Date.now();
+                        var diff = Math.floor((state.endTime - now) / 1000);
+                        if (diff > 0) {
+                            timeRemaining = diff;
+                            isRunning = true;
+                            endTime = state.endTime;
+                            startLocalInterval();
+                        } else {
+                            timeRemaining = 0;
+                            isRunning = false;
+                            stopLocalInterval();
+                        }
+                    } else {
+                        timeRemaining = state.timeRemaining !== undefined ? state.timeRemaining : initialTime;
+                        isRunning = false;
+                        stopLocalInterval();
+                    }
+                    updateDisplay();
+                }
+            } catch (e) {}
+        }
+
+        function saveTimerState() {
+            try {
+                var state = {
+                    isRunning: isRunning,
+                    endTime: endTime,
+                    timeRemaining: timeRemaining,
+                    initialTime: initialTime
+                };
+                localStorage.setItem('powerpoint-timer-state', JSON.stringify(state));
+            } catch (e) {}
+        }
+
+        // Escuta mudanças no localStorage para sincronizar se outro slide atualizar o tempo
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'powerpoint-timer-state') {
+                loadTimerState();
+            }
+        });
+
         // ------------------ LÓGICA DO TIMER ------------------
 
         function updateDisplay() {
             // Só atualiza os inputs se o usuário não estiver focado neles
             if (document.activeElement !== minInput && document.activeElement !== secInput) {
-                const m = Math.floor(timeRemaining / 60);
-                const s = timeRemaining % 60;
+                var m = Math.floor(timeRemaining / 60);
+                var s = timeRemaining % 60;
                 
-                minInput.value = m.toString().padStart(2, '0');
-                secInput.value = s.toString().padStart(2, '0');
+                // Formatação para garantir 2 dígitos (compatível com IE11)
+                var strM = m < 10 ? '0' + m : m.toString();
+                var strS = s < 10 ? '0' + s : s.toString();
+
+                minInput.value = strM;
+                secInput.value = strS;
             }
         }
 
+        function startLocalInterval() {
+            if (timerInterval) clearInterval(timerInterval);
+            playBtn.innerHTML = "⏸ Pausar";
+            
+            timerInterval = setInterval(function() {
+                if (isRunning && endTime) {
+                    var now = Date.now();
+                    var diff = Math.floor((endTime - now) / 1000);
+                    
+                    if (diff >= 0) {
+                        if (timeRemaining !== diff) {
+                            timeRemaining = diff;
+                            updateDisplay();
+                        }
+                    } else {
+                        timeRemaining = 0;
+                        isRunning = false;
+                        stopLocalInterval();
+                        updateDisplay();
+                    }
+                }
+            }, 200); // 200ms para manter a sincronia suave entre telas
+        }
+
+        function stopLocalInterval() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            playBtn.innerHTML = "▶ Iniciar";
+        }
+
         function toggleTimer() {
+            // Garante que ambos os inputs percam o foco antes de iniciar
+            minInput.blur();
+            secInput.blur();
+
             if (isRunning) {
                 // Pausar
-                clearInterval(timerInterval);
                 isRunning = false;
-                playBtn.innerHTML = "▶ Iniciar";
+                stopLocalInterval();
+                saveTimerState();
             } else {
                 // Iniciar
-                // Garante que ambos os inputs percam o foco antes de iniciar
-                minInput.blur();
-                secInput.blur();
-                
                 if (timeRemaining > 0) {
                     isRunning = true;
-                    playBtn.innerHTML = "⏸ Pausar";
-
-                    timerInterval = setInterval(() => {
-                        timeRemaining--;
-                        updateDisplay();
-                        
-                        if (timeRemaining <= 0) {
-                            clearInterval(timerInterval);
-                            isRunning = false;
-                            playBtn.innerHTML = "▶ Iniciar";
-                        }
-                    }, 1000);
+                    endTime = Date.now() + (timeRemaining * 1000);
+                    startLocalInterval();
+                    saveTimerState();
                 }
             }
         }
 
         function resetTimer() {
-            clearInterval(timerInterval);
             isRunning = false;
-            playBtn.innerHTML = "▶ Iniciar";
             timeRemaining = initialTime;
+            stopLocalInterval();
+            saveTimerState();
             updateDisplay();
         }
 
@@ -564,8 +642,8 @@
 
         function handleBlur() {
             // Limita os valores e garante que tenham 2 dígitos
-            let m = parseInt(minInput.value) || 0;
-            let s = parseInt(secInput.value) || 0;
+            var m = parseInt(minInput.value) || 0;
+            var s = parseInt(secInput.value) || 0;
             
             if (s > 59) {
                 // Se digitar mais de 59 segundos, converte o excedente para minutos
@@ -575,11 +653,11 @@
             if (m > 99) m = 99; // Limita a 99 minutos
             
             // Recalcula o tempo total
-            const newSeconds = (m * 60) + s;
+            var newSeconds = (m * 60) + s;
             initialTime = newSeconds;
             timeRemaining = newSeconds;
             
-            // Atualiza a tela com os valores formatados
+            saveTimerState(); // Sincroniza a edição com outros slides
             updateDisplay();
             
             // Remove a seleção fantasma no IE/Edge
