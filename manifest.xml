@@ -7,10 +7,10 @@
   
   <Id>d53f25c2-19e3-46c2-8438-e4b95b871234</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Seu Nome ou Empresa</ProviderName>
+  <ProviderName>Gol Linhas Aereas</ProviderName>
   <DefaultLocale>pt-BR</DefaultLocale>
   
-  <DisplayName DefaultValue="Timer Overlay Profissional" />
+  <DisplayName DefaultValue="Timer Overlay" />
   <Description DefaultValue="Um timer de contagem regressiva personalizável para suas apresentações." />
   
   <!-- Ícones Padrões (substitua futuramente pelos seus próprios) -->
