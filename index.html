@@ -425,12 +425,12 @@
                     if(settings.bgOpacity !== undefined) currentOpacity = settings.bgOpacity;
                     if(settings.bgColor) document.getElementById('bg-color').value = settings.bgColor;
                     if(settings.textColor) document.getElementById('text-color').value = settings.textColor;
-                    
-                    applyVisualSettings(false); 
                 }
             } catch (e) {
                 console.log("Não foi possível carregar configurações", e);
             }
+            // Aplica os visuais sempre, mesmo se for a primeira vez, para forçar o botão 'Oculto' e o fundo branco
+            applyVisualSettings(false); 
         }
 
         function saveSettingsLocally() {
