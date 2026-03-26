@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="ContentApp">
+  
+  <Id>d53f25c2-19e3-46c2-8438-e4b95b871234</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Seu Nome ou Empresa</ProviderName>
+  <DefaultLocale>pt-BR</DefaultLocale>
+  
+  <DisplayName DefaultValue="Timer Overlay Profissional" />
+  <Description DefaultValue="Um timer de contagem regressiva personalizável para suas apresentações." />
+  
+  <!-- Ícones Padrões (substitua futuramente pelos seus próprios) -->
+  <IconUrl DefaultValue="https://raw.githubusercontent.com/OfficeDev/office-js-snippets/prod/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://raw.githubusercontent.com/OfficeDev/office-js-snippets/prod/assets/icon-64.png" />
+  <SupportUrl DefaultValue="https://www.sua-empresa.com/suporte" />
+  
+  <AppDomains>
+    <AppDomain>https://seu-usuario.github.io</AppDomain>
+  </AppDomains>
+  
+  <Hosts>
+    <Host Name="Presentation" />
+  </Hosts>
+  
+  <DefaultSettings>
+    <!-- Substitua pela URL onde você hospedará este arquivo index.html -->
+    <SourceLocation DefaultValue="https://seu-usuario.github.io/timer-powerpoint/index.html" />
+    <RequestedWidth>350</RequestedWidth>
+    <RequestedHeight>200</RequestedHeight>
+  </DefaultSettings>
+  
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>

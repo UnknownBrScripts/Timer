@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PowerPoint Timer Moderno</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        /* Resets para garantir transparência total e ocupar o espaço do Add-in */
+        html, body {
+            margin: 0; 
+            padding: 0; 
+            width: 100%; 
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: transparent !important;
+        }
+        
+        /* Container principal que funciona como Overlay */
+        #app {
+            width: 100%; 
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            /* Cor de fundo controlada pelo Javascript (padrão: 100% transparente) */
+            background-color: rgba(0, 0, 0, 0); 
+            transition: background-color 0.3s ease;
+        }
+
+        /* Container do timer e controles para mantê-los centralizados */
+        #timer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+        }
+        
+        /* O campo onde os números são mostrados e podem ser editados */
+        .time-display-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Removemos o font-size fixo daqui, será controlado dinamicamente via CSS e JS */
+            font-weight: 800;
+            color: #000000;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+            letter-spacing: -0.02em; /* Usando em em vez de px para escalar com a fonte */
+            transition: color 0.3s;
+            width: 100%;
+            height: auto; /* Deixa a altura flexível */
+            line-height: 1; /* Previne cortes verticais estranhos */
+        }
+
+        .time-input {
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
+            text-shadow: inherit;
+            border: none;
+            background: transparent;
+            text-align: center;
+            width: 2.3ch; /* Largura levemente maior para garantir espaço com fontes variáveis */
+            outline: none;
+            font-variant-numeric: tabular-nums;
+            cursor: text;
+            padding: 0;
+            margin: 0;
+            -moz-appearance: textfield;
+            line-height: 1;
+        }
+
+        /* Remove as setas no Chrome/Safari/Edge */
+        .time-input::-webkit-outer-spin-button,
+        .time-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .time-separator {
+            margin-top: -15px; /* Ajuste fino para alinhar verticalmente os dois pontos */
+        }
+
+        .time-input:focus {
+            text-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        /* Área dos botões (Início, Reset) */
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px; /* Ajustado para se basear na nova estrutura dinâmica */
+            opacity: 0.3; /* Ficam discretos até o mouse passar por cima */
+            transition: opacity 0.3s;
+            z-index: 3;
+        }
+
+        #app:hover .controls {
+            opacity: 1;
+        }
+
+        .btn {
+            background: rgba(0, 0, 0, 0.6); /* Fundo escuro semi-transparente para garantir contraste no branco */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff; /* Texto sempre branco */
+            padding: 10px 24px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); /* Sombra para destacar no fundo claro */
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Botão de configurações */
+        #settings-btn {
+            position: absolute;
+            top: 15px; 
+            right: 15px;
+            background: rgba(0,0,0,0.6); /* Mais escuro para ficar visível no branco */
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s, background 0.2s;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        #app:hover #settings-btn {
+            opacity: 1;
+        }
+
+        #settings-btn:hover {
+            background: rgba(0,0,0,0.8);
+            transform: scale(1.05);
+        }
+
+        /* Painel de Configurações (Agora é um Modal Centralizado) */
+        #settings-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(3px);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        #settings-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        #settings-panel {
+            width: 90%;
+            max-width: 320px;
+            max-height: 90vh; /* Impede que o modal seja maior que a tela */
+            overflow-y: auto; /* Adiciona scroll interno ao modal se necessário */
+            background: #ffffff;
+            color: #333333;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.9);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #settings-overlay.active #settings-panel {
+            transform: scale(1);
+        }
+
+        #settings-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: #111;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .setting-group {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .setting-group label {
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* Substituindo sliders por grupos de botões */
+        .btn-group-sm {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-sm {
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-sm.active, .btn-sm:hover {
+            background: #0078d4;
+            color: white;
+            border-color: #0078d4;
+        }
+
+        /* Inputs de cor mais discretos */
+        .color-picker-wrapper {
+            position: relative;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .setting-group input[type="color"] {
+            position: absolute;
+            top: -10px; left: -10px;
+            width: 50px; height: 50px;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .close-settings {
+            margin-top: 10px;
+            background: #0078d4;
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        .close-settings:hover {
+            background: #005a9e;
+        }
+
+        /* Ajustes para telas muito pequenas ou muito achatadas (como na imagem de exemplo) */
+        @media (max-width: 400px), (max-height: 300px) {
+            .btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            #settings-panel {
+                padding: 15px;
+            }
+            .setting-group {
+                margin-bottom: 8px;
+            }
+            #settings-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 16px;
+                top: 5px;
+                right: 5px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Botão de Configuração (Engrenagem) -->
+        <button id="settings-btn" onclick="toggleSettings()" title="Ajustes do Overlay">⚙️</button>
+        
+        <!-- Área Central do Timer -->
+        <div id="timer-container">
+            <!-- Valores do tempo separados, com o ':' fixo no meio -->
+            <div class="time-display-wrapper" id="time-wrapper">
+                <input type="number" id="min-input" class="time-input" value="05" min="0" max="99"
+                       onfocus="handleFocus(this)" onblur="handleBlur()" onkeypress="handleEnter(event)">
+                <span class="time-separator">:</span>
+                <input type="number" id="sec-input" class="time-input" value="00" min="0" max="59"
+                       onfocus="handleFocus(this)" onblur="handleBlur()" onkeypress="handleEnter(event)">
+            </div>
+            
+            <!-- Botões Práticos -->
+            <div class="controls">
+                <button class="btn" id="play-pause-btn" onclick="toggleTimer()">▶ Iniciar</button>
+                <button class="btn" onclick="resetTimer()">🔄 Resetar</button>
+            </div>
+        </div>
+
+        <!-- Painel de Configurações (Modal) -->
+        <div id="settings-overlay" onclick="closeSettingsIfOutside(event)">
+            <div id="settings-panel">
+                <h3>Ajustes do Timer</h3>
+                
+                <div class="setting-group">
+                    <label>Fundo (Overlay)</label>
+                    <div class="btn-group-sm">
+                        <button class="btn-sm" id="btn-op-0" onclick="setOpacity(0)">Oculto</button>
+                        <button class="btn-sm" id="btn-op-50" onclick="setOpacity(50)">Médio</button>
+                        <button class="btn-sm" id="btn-op-90" onclick="setOpacity(90)">Sólido</button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label>Cor do Fundo</label>
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="bg-color" value="#000000" oninput="applyVisualSettings()">
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label>Cor dos Números</label>
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="text-color" value="#000000" oninput="applyVisualSettings()">
+                    </div>
+                </div>
+
+                <button class="close-settings" onclick="toggleSettings()">Concluído</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis de Estado
+        let timeRemaining = 300; // 5 min em segundos (valor padrão)
+        let initialTime = 300;
+        let isRunning = false;
+        let timerInterval = null;
+        let currentOpacity = 0;
+        let currentFontSize = 150;
+
+        const minInput = document.getElementById('min-input');
+        const secInput = document.getElementById('sec-input');
+        const playBtn = document.getElementById('play-pause-btn');
+
+        // Inicializa o Office Add-in (Apenas loga se estiver no PowerPoint)
+        Office.onReady(function (info) {
+            if (info.host === Office.HostType.PowerPoint) {
+                console.log("Timer carregado no PowerPoint.");
+            }
+            loadSettings(); // Carrega as configurações assim que possível
+        });
+
+        // ------------------ SALVAR/CARREGAR CONFIGURAÇÕES ------------------
+        
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('powerpoint-timer-settings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    
+                    if(settings.bgOpacity !== undefined) currentOpacity = settings.bgOpacity;
+                    if(settings.bgColor) document.getElementById('bg-color').value = settings.bgColor;
+                    if(settings.textColor) document.getElementById('text-color').value = settings.textColor;
+                    
+                    applyVisualSettings(false); 
+                }
+            } catch (e) {
+                console.log("Não foi possível carregar configurações", e);
+            }
+        }
+
+        function saveSettingsLocally() {
+            try {
+                const settings = {
+                    bgOpacity: currentOpacity,
+                    bgColor: document.getElementById('bg-color').value,
+                    textColor: document.getElementById('text-color').value
+                };
+                localStorage.setItem('powerpoint-timer-settings', JSON.stringify(settings));
+            } catch (e) {
+                console.log("Não foi possível salvar configurações", e);
+            }
+        }
+
+        // ------------------ RESPONSIVIDADE DINÂMICA (FIT-TO-CONTAINER) ------------------
+        
+        function resizeTimerText() {
+            const wrapper = document.getElementById('time-wrapper');
+            const container = document.getElementById('app');
+            
+            // Pega as dimensões reais da janela
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Queremos que o texto ocupe no máximo 80% da largura ou 60% da altura
+            // A proporção de largura do texto "00:00" é de aproximadamente 1 unidade de altura para 2.5 de largura.
+            // Então, dividimos a largura disponível por 2.5 para compará-la com a altura.
+            
+            const maxFontBasedOnWidth = width * 0.8 / 2.5; 
+            const maxFontBasedOnHeight = height * 0.55; // Deixa espaço para os botões embaixo
+            
+            // Escolhe o menor tamanho para garantir que sempre caiba na tela
+            let finalFontSize = Math.min(maxFontBasedOnWidth, maxFontBasedOnHeight);
+            
+            // Define um tamanho mínimo para não ficar invisível
+            if (finalFontSize < 30) finalFontSize = 30;
+
+            wrapper.style.fontSize = finalFontSize + 'px';
+        }
+
+        // Chama a função toda vez que a janela for redimensionada
+        window.addEventListener('resize', resizeTimerText);
+
+        // ------------------ LÓGICA DO TIMER ------------------
+
+        function updateDisplay() {
+            // Só atualiza os inputs se o usuário não estiver focado neles
+            if (document.activeElement !== minInput && document.activeElement !== secInput) {
+                const m = Math.floor(timeRemaining / 60);
+                const s = timeRemaining % 60;
+                
+                minInput.value = m.toString().padStart(2, '0');
+                secInput.value = s.toString().padStart(2, '0');
+            }
+        }
+
+        function toggleTimer() {
+            if (isRunning) {
+                // Pausar
+                clearInterval(timerInterval);
+                isRunning = false;
+                playBtn.innerHTML = "▶ Iniciar";
+            } else {
+                // Iniciar
+                // Garante que ambos os inputs percam o foco antes de iniciar
+                minInput.blur();
+                secInput.blur();
+                
+                if (timeRemaining > 0) {
+                    isRunning = true;
+                    playBtn.innerHTML = "⏸ Pausar";
+
+                    timerInterval = setInterval(() => {
+                        timeRemaining--;
+                        updateDisplay();
+                        
+                        if (timeRemaining <= 0) {
+                            clearInterval(timerInterval);
+                            isRunning = false;
+                            playBtn.innerHTML = "▶ Iniciar";
+                        }
+                    }, 1000);
+                }
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            playBtn.innerHTML = "▶ Iniciar";
+            timeRemaining = initialTime;
+            updateDisplay();
+        }
+
+        // ------------------ EDIÇÃO DO TEMPO ------------------
+
+        function handleFocus(element) {
+            // Pausa o timer automaticamente se clicar para editar
+            if (isRunning) toggleTimer();
+            // Seleciona todo o texto para facilitar a digitação
+            element.select();
+        }
+
+        function handleBlur() {
+            // Limita os valores e garante que tenham 2 dígitos
+            let m = parseInt(minInput.value) || 0;
+            let s = parseInt(secInput.value) || 0;
+            
+            if (s > 59) {
+                // Se digitar mais de 59 segundos, converte o excedente para minutos
+                m += Math.floor(s / 60);
+                s = s % 60;
+            }
+            if (m > 99) m = 99; // Limita a 99 minutos
+            
+            // Recalcula o tempo total
+            const newSeconds = (m * 60) + s;
+            initialTime = newSeconds;
+            timeRemaining = newSeconds;
+            
+            // Atualiza a tela com os valores formatados
+            updateDisplay();
+        }
+
+        function handleEnter(e) {
+            // Se apertar "Enter", tira o foco e inicia
+            if (e.key === 'Enter') {
+                e.target.blur(); // Tira o foco do elemento atual
+                toggleTimer();
+            }
+        }
+
+        // ------------------ CONFIGURAÇÕES VISUAIS ------------------
+
+        function toggleSettings() {
+            document.getElementById('settings-overlay').classList.toggle('active');
+        }
+
+        function closeSettingsIfOutside(e) {
+            if (e.target.id === 'settings-overlay') {
+                toggleSettings();
+            }
+        }
+
+        function setOpacity(val) {
+            currentOpacity = val;
+            
+            // Atualiza visual dos botões
+            document.querySelectorAll('#btn-op-0, #btn-op-50, #btn-op-90').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-op-' + val).classList.add('active');
+            
+            applyVisualSettings();
+        }
+
+        function changeFontSize(delta) {
+            // Removido pois o tamanho agora é dinâmico com base na janela
+            // Esta função não é mais necessária, o CSS/JS lida com o tamanho
+        }
+
+        // Converte Hex para RGB para poder aplicar a opacidade
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function applyVisualSettings(save = true) {
+            const hexColor = document.getElementById('bg-color').value;
+            const textColor = document.getElementById('text-color').value;
+
+            // Aplica a opacidade do overlay
+            const alpha = currentOpacity / 100;
+            const rgb = hexToRgb(hexColor);
+            if (rgb) {
+                document.getElementById('app').style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+            }
+
+            // Aplica estilos do texto
+            document.getElementById('time-wrapper').style.color = textColor;
+            // A fonte agora é gerida pela função resizeTimerText()
+            
+            // Sincroniza estado do botão de opacidade
+            document.querySelectorAll('#btn-op-0, #btn-op-50, #btn-op-90').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-op-' + currentOpacity);
+            if(btn) btn.classList.add('active');
+
+            // Salva se solicitado
+            if (save) {
+                saveSettingsLocally();
+            }
+        }
+
+        // Inicialização
+        updateDisplay();
+        resizeTimerText(); // Ajusta o tamanho da fonte inicialmente
+        // Não precisamos chamar applyVisualSettings() aqui, pois o loadSettings() fará isso.
+
+    </script>
+</body>
+</html>
