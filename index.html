@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>PowerPoint Timer Moderno</title>
+    <!-- Polyfills para navegadores mais antigos que o PowerPoint pode estar usando internamente (IE11/Edge Legacy) -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default,es6,Math.trunc,Math.sign"></script>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <style>
         /* Resets para garantir transparência total e ocupar o espaço do Add-in */
@@ -377,12 +379,26 @@
         const secInput = document.getElementById('sec-input');
         const playBtn = document.getElementById('play-pause-btn');
 
-        // Inicializa o Office Add-in (Apenas loga se estiver no PowerPoint)
+        // Funções Arrow e variáveis const/let podem dar erro no IE11 (usado por versões mais antigas do Office).
+        // Vamos garantir que a inicialização do Office.js não quebre.
+        
         Office.onReady(function (info) {
-            if (info.host === Office.HostType.PowerPoint) {
-                console.log("Timer carregado no PowerPoint.");
+            try {
+                if (info && info.host === Office.HostType.PowerPoint) {
+                    console.log("Timer carregado no PowerPoint.");
+                }
+                
+                // Inicialização
+                updateDisplay();
+                resizeTimerText();
+                loadSettings();
+            } catch (e) {
+                console.error("Erro na inicialização do Office.js:", e);
+                // Tenta inicializar mesmo se der erro no Office.js
+                updateDisplay();
+                resizeTimerText();
+                loadSettings();
             }
-            loadSettings(); // Carrega as configurações assim que possível
         });
 
         // ------------------ SALVAR/CARREGAR CONFIGURAÇÕES ------------------
@@ -598,11 +614,8 @@
             }
         }
 
-        // Inicialização
-        updateDisplay();
-        resizeTimerText(); // Ajusta o tamanho da fonte inicialmente
-        // Não precisamos chamar applyVisualSettings() aqui, pois o loadSettings() fará isso.
-
+        // Não precisamos chamar as funções aqui no final do script, 
+        // elas agora são chamadas dentro do Office.onReady()
     </script>
 </body>
 </html>
