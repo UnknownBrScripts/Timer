@@ -367,37 +367,42 @@
     </div>
 
     <script>
-        // Variáveis de Estado
-        let timeRemaining = 300; // 5 min em segundos (valor padrão)
-        let initialTime = 300;
-        let isRunning = false;
-        let timerInterval = null;
-        let currentOpacity = 0;
-        let currentFontSize = 150;
-
-        const minInput = document.getElementById('min-input');
-        const secInput = document.getElementById('sec-input');
-        const playBtn = document.getElementById('play-pause-btn');
-
-        // Funções Arrow e variáveis const/let podem dar erro no IE11 (usado por versões mais antigas do Office).
-        // Vamos garantir que a inicialização do Office.js não quebre.
+        // Versão extremamente simplificada para garantir compatibilidade com IE11
+        // Removendo const, let, arrow functions e modernidades.
         
+        var timeRemaining = 300; 
+        var initialTime = 300;
+        var isRunning = false;
+        var timerInterval = null;
+        var currentOpacity = 0;
+        var currentFontSize = 150;
+
+        var minInput;
+        var secInput;
+        var playBtn;
+
         Office.onReady(function (info) {
             try {
                 if (info && info.host === Office.HostType.PowerPoint) {
                     console.log("Timer carregado no PowerPoint.");
                 }
                 
-                // Inicialização
+                // Mapeia os elementos apenas após o carregamento
+                minInput = document.getElementById('min-input');
+                secInput = document.getElementById('sec-input');
+                playBtn = document.getElementById('play-pause-btn');
+
                 updateDisplay();
                 resizeTimerText();
                 loadSettings();
             } catch (e) {
-                console.error("Erro na inicialização do Office.js:", e);
-                // Tenta inicializar mesmo se der erro no Office.js
+                console.error("Erro na inicialização:", e);
+                // Fallback
+                minInput = document.getElementById('min-input');
+                secInput = document.getElementById('sec-input');
+                playBtn = document.getElementById('play-pause-btn');
                 updateDisplay();
                 resizeTimerText();
-                loadSettings();
             }
         });
 
@@ -405,9 +410,9 @@
         
         function loadSettings() {
             try {
-                const saved = localStorage.getItem('powerpoint-timer-settings');
+                var saved = localStorage.getItem('powerpoint-timer-settings');
                 if (saved) {
-                    const settings = JSON.parse(saved);
+                    var settings = JSON.parse(saved);
                     
                     if(settings.bgOpacity !== undefined) currentOpacity = settings.bgOpacity;
                     if(settings.bgColor) document.getElementById('bg-color').value = settings.bgColor;
@@ -416,74 +421,71 @@
                     applyVisualSettings(false); 
                 }
             } catch (e) {
-                console.log("Não foi possível carregar configurações", e);
+                console.log("Não foi possível carregar configurações");
             }
         }
 
         function saveSettingsLocally() {
             try {
-                const settings = {
+                var settings = {
                     bgOpacity: currentOpacity,
                     bgColor: document.getElementById('bg-color').value,
                     textColor: document.getElementById('text-color').value
                 };
                 localStorage.setItem('powerpoint-timer-settings', JSON.stringify(settings));
             } catch (e) {
-                console.log("Não foi possível salvar configurações", e);
+                console.log("Não foi possível salvar configurações");
             }
         }
 
         // ------------------ RESPONSIVIDADE DINÂMICA (FIT-TO-CONTAINER) ------------------
         
         function resizeTimerText() {
-            const wrapper = document.getElementById('time-wrapper');
-            const container = document.getElementById('app');
+            var wrapper = document.getElementById('time-wrapper');
+            var container = document.getElementById('app');
             
-            // Pega as dimensões reais da janela
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+            if(!wrapper || !container) return;
+
+            var width = container.clientWidth;
+            var height = container.clientHeight;
             
-            // Queremos que o texto ocupe no máximo 80% da largura ou 60% da altura
-            // A proporção de largura do texto "00:00" é de aproximadamente 1 unidade de altura para 2.5 de largura.
-            // Então, dividimos a largura disponível por 2.5 para compará-la com a altura.
+            var maxFontBasedOnWidth = width * 0.8 / 2.5; 
+            var maxFontBasedOnHeight = height * 0.55; 
             
-            const maxFontBasedOnWidth = width * 0.8 / 2.5; 
-            const maxFontBasedOnHeight = height * 0.55; // Deixa espaço para os botões embaixo
+            var finalFontSize = Math.min(maxFontBasedOnWidth, maxFontBasedOnHeight);
             
-            // Escolhe o menor tamanho para garantir que sempre caiba na tela
-            let finalFontSize = Math.min(maxFontBasedOnWidth, maxFontBasedOnHeight);
-            
-            // Define um tamanho mínimo para não ficar invisível
             if (finalFontSize < 30) finalFontSize = 30;
 
             wrapper.style.fontSize = finalFontSize + 'px';
         }
 
-        // Chama a função toda vez que a janela for redimensionada
         window.addEventListener('resize', resizeTimerText);
 
         // ------------------ LÓGICA DO TIMER ------------------
 
+        // Helper para padding (IE11 não suporta padStart nativamente de forma confiável)
+        function padZero(num) {
+            var str = num.toString();
+            return str.length < 2 ? "0" + str : str;
+        }
+
         function updateDisplay() {
-            // Só atualiza os inputs se o usuário não estiver focado neles
+            if (!minInput || !secInput) return;
             if (document.activeElement !== minInput && document.activeElement !== secInput) {
-                const m = Math.floor(timeRemaining / 60);
-                const s = timeRemaining % 60;
+                var m = Math.floor(timeRemaining / 60);
+                var s = timeRemaining % 60;
                 
-                minInput.value = m.toString().padStart(2, '0');
-                secInput.value = s.toString().padStart(2, '0');
+                minInput.value = padZero(m);
+                secInput.value = padZero(s);
             }
         }
 
         function toggleTimer() {
             if (isRunning) {
-                // Pausar
                 clearInterval(timerInterval);
                 isRunning = false;
                 playBtn.innerHTML = "▶ Iniciar";
             } else {
-                // Iniciar
-                // Garante que ambos os inputs percam o foco antes de iniciar
                 minInput.blur();
                 secInput.blur();
                 
@@ -491,7 +493,7 @@
                     isRunning = true;
                     playBtn.innerHTML = "⏸ Pausar";
 
-                    timerInterval = setInterval(() => {
+                    timerInterval = setInterval(function() {
                         timeRemaining--;
                         updateDisplay();
                         
@@ -516,37 +518,30 @@
         // ------------------ EDIÇÃO DO TEMPO ------------------
 
         function handleFocus(element) {
-            // Pausa o timer automaticamente se clicar para editar
             if (isRunning) toggleTimer();
-            // Seleciona todo o texto para facilitar a digitação
             element.select();
         }
 
         function handleBlur() {
-            // Limita os valores e garante que tenham 2 dígitos
-            let m = parseInt(minInput.value) || 0;
-            let s = parseInt(secInput.value) || 0;
+            var m = parseInt(minInput.value) || 0;
+            var s = parseInt(secInput.value) || 0;
             
             if (s > 59) {
-                // Se digitar mais de 59 segundos, converte o excedente para minutos
                 m += Math.floor(s / 60);
                 s = s % 60;
             }
-            if (m > 99) m = 99; // Limita a 99 minutos
+            if (m > 99) m = 99; 
             
-            // Recalcula o tempo total
-            const newSeconds = (m * 60) + s;
+            var newSeconds = (m * 60) + s;
             initialTime = newSeconds;
             timeRemaining = newSeconds;
             
-            // Atualiza a tela com os valores formatados
             updateDisplay();
         }
 
         function handleEnter(e) {
-            // Se apertar "Enter", tira o foco e inicia
-            if (e.key === 'Enter') {
-                e.target.blur(); // Tira o foco do elemento atual
+            if (e.keyCode === 13 || e.key === 'Enter') {
+                if(e.target && e.target.blur) e.target.blur(); 
                 toggleTimer();
             }
         }
@@ -554,11 +549,18 @@
         // ------------------ CONFIGURAÇÕES VISUAIS ------------------
 
         function toggleSettings() {
-            document.getElementById('settings-overlay').classList.toggle('active');
+            var overlay = document.getElementById('settings-overlay');
+            if(overlay) {
+                if(overlay.className.indexOf('active') > -1) {
+                    overlay.className = overlay.className.replace(' active', '');
+                } else {
+                    overlay.className += ' active';
+                }
+            }
         }
 
         function closeSettingsIfOutside(e) {
-            if (e.target.id === 'settings-overlay') {
+            if (e.target && e.target.id === 'settings-overlay') {
                 toggleSettings();
             }
         }
@@ -566,21 +568,19 @@
         function setOpacity(val) {
             currentOpacity = val;
             
-            // Atualiza visual dos botões
-            document.querySelectorAll('#btn-op-0, #btn-op-50, #btn-op-90').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-op-' + val).classList.add('active');
+            var btns = [document.getElementById('btn-op-0'), document.getElementById('btn-op-50'), document.getElementById('btn-op-90')];
+            for(var i=0; i<btns.length; i++) {
+                if(btns[i]) btns[i].className = btns[i].className.replace(' active', '');
+            }
+            
+            var activeBtn = document.getElementById('btn-op-' + val);
+            if(activeBtn) activeBtn.className += ' active';
             
             applyVisualSettings();
         }
 
-        function changeFontSize(delta) {
-            // Removido pois o tamanho agora é dinâmico com base na janela
-            // Esta função não é mais necessária, o CSS/JS lida com o tamanho
-        }
-
-        // Converte Hex para RGB para poder aplicar a opacidade
         function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? {
                 r: parseInt(result[1], 16),
                 g: parseInt(result[2], 16),
@@ -588,27 +588,34 @@
             } : null;
         }
 
-        function applyVisualSettings(save = true) {
-            const hexColor = document.getElementById('bg-color').value;
-            const textColor = document.getElementById('text-color').value;
+        function applyVisualSettings(save) {
+            if(save === undefined) save = true;
 
-            // Aplica a opacidade do overlay
-            const alpha = currentOpacity / 100;
-            const rgb = hexToRgb(hexColor);
-            if (rgb) {
-                document.getElementById('app').style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+            var hexColor = document.getElementById('bg-color').value;
+            var textColor = document.getElementById('text-color').value;
+
+            var alpha = currentOpacity / 100;
+            var rgb = hexToRgb(hexColor);
+            var app = document.getElementById('app');
+            
+            if (rgb && app) {
+                app.style.backgroundColor = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha + ')';
             }
 
-            // Aplica estilos do texto
-            document.getElementById('time-wrapper').style.color = textColor;
-            // A fonte agora é gerida pela função resizeTimerText()
+            var wrapper = document.getElementById('time-wrapper');
+            if(wrapper) {
+                wrapper.style.color = textColor;
+            }
             
-            // Sincroniza estado do botão de opacidade
-            document.querySelectorAll('#btn-op-0, #btn-op-50, #btn-op-90').forEach(b => b.classList.remove('active'));
-            const btn = document.getElementById('btn-op-' + currentOpacity);
-            if(btn) btn.classList.add('active');
+            var btns = [document.getElementById('btn-op-0'), document.getElementById('btn-op-50'), document.getElementById('btn-op-90')];
+            for(var i=0; i<btns.length; i++) {
+                if(btns[i]) btns[i].className = btns[i].className.replace(' active', '');
+            }
+            var activeBtn = document.getElementById('btn-op-' + currentOpacity);
+            if(activeBtn && activeBtn.className.indexOf('active') === -1) {
+                activeBtn.className += ' active';
+            }
 
-            // Salva se solicitado
             if (save) {
                 saveSettingsLocally();
             }
