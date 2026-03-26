@@ -15,12 +15,7 @@
             height: 100%;
             overflow: hidden;
             font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            background-color: transparent !important;
-        }
-        
-        /* Hack para o Office 365 / IE11 respeitar a transparência do body */
-        body {
-            background: rgba(255,255,255,0.01) !important; /* Quase invisível, mas força o motor a renderizar Alpha */
+            background-color: transparent;
         }
         
         /* Container principal que funciona como Overlay */
@@ -627,7 +622,9 @@
             
             if (rgb && app) {
                 if (alpha === 0) {
-                    app.style.backgroundColor = 'transparent';
+                    // Se o usuário quer "Oculto", pintamos de branco para combinar com o fundo do slide,
+                    // já que o PowerPoint não permite transparência real de qualquer forma.
+                    app.style.backgroundColor = '#FFFFFF';
                 } else {
                     app.style.backgroundColor = 'rgba(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ', ' + alpha + ')';
                 }
