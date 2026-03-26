@@ -19,7 +19,7 @@
   <SupportUrl DefaultValue="https://www.sua-empresa.com/suporte" />
   
   <AppDomains>
-    <AppDomain>https://seu-usuario.github.io</AppDomain>
+    <AppDomain>https://unknownbrscripts.github.io</AppDomain>
   </AppDomains>
   
   <Hosts>
@@ -28,7 +28,7 @@
   
   <DefaultSettings>
     <!-- Substitua pela URL onde você hospedará este arquivo index.html -->
-    <SourceLocation DefaultValue="https://seu-usuario.github.io/timer-powerpoint/index.html" />
+    <SourceLocation DefaultValue="https://unknownbrscripts.github.io/Timer/index.html" />
     <RequestedWidth>350</RequestedWidth>
     <RequestedHeight>200</RequestedHeight>
   </DefaultSettings>
