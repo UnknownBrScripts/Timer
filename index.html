@@ -38,6 +38,7 @@
             flex-direction: column;
             align-items: center;
             z-index: 2;
+            cursor: pointer; /* Indica que toda a área central é clicável */
         }
         
         /* O campo onde os números são mostrados e podem ser editados */
@@ -47,7 +48,7 @@
             justify-content: center;
             /* Removemos o font-size fixo daqui, será controlado dinamicamente via CSS e JS */
             font-weight: 800;
-            color: #000000;
+            color: #ef8206; /* Laranja como cor inicial padrão */
             text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
             letter-spacing: -0.02em; /* Usando em em vez de px para escalar com a fonte */
             transition: color 0.3s;
@@ -360,14 +361,16 @@
                 <div class="setting-group">
                     <label>Cor do Fundo</label>
                     <div class="color-picker-wrapper">
-                        <input type="color" id="bg-color" value="#000000" oninput="applyVisualSettings()">
+                        <!-- Branco padrão -->
+                        <input type="color" id="bg-color" value="#ffffff" oninput="applyVisualSettings()">
                     </div>
                 </div>
 
                 <div class="setting-group">
                     <label>Cor dos Números</label>
                     <div class="color-picker-wrapper">
-                        <input type="color" id="text-color" value="#000000" oninput="applyVisualSettings()">
+                        <!-- Laranja padrão da imagem do usuário -->
+                        <input type="color" id="text-color" value="#ef8206" oninput="applyVisualSettings()">
                     </div>
                 </div>
 
@@ -471,6 +474,33 @@
 
         // Chama a função toda vez que a janela for redimensionada
         window.addEventListener('resize', resizeTimerText);
+
+        // ------------------ EVENTOS GLOBAIS (MODO APRESENTAÇÃO) ------------------
+        
+        // No modo apresentação do PowerPoint, cliques em botões específicos dentro do iframe 
+        // às vezes são engolidos pelo motor de slide. Para resolver isso, adicionamos um evento 
+        // global na tela inteira para capturar cliques se os botões falharem.
+        
+        document.addEventListener('click', function(e) {
+            // Ignora cliques se estiver no painel de configurações ou nos inputs de texto
+            if (document.getElementById('settings-overlay').className.indexOf('active') > -1) return;
+            if (e.target.tagName.toLowerCase() === 'input') return;
+            
+            // Se clicou direto no botão de Iniciar/Pausar, o próprio botão já lida com isso.
+            if (e.target.id === 'play-pause-btn' || e.target.closest('#play-pause-btn')) return;
+            
+            // Se clicou no botão de Resetar
+            if (e.target.innerText && e.target.innerText.indexOf('Resetar') > -1) {
+                resetTimer();
+                return;
+            }
+            
+            // Se clicou no botão de configurações, ignora
+            if (e.target.id === 'settings-btn' || e.target.closest('#settings-btn')) return;
+
+            // Qualquer outro clique na tela do app (inclusive nos números ou no fundo branco) inicia/pausa o timer!
+            toggleTimer();
+        });
 
         // ------------------ LÓGICA DO TIMER ------------------
 
